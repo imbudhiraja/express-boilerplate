@@ -23,13 +23,20 @@ const userSchema = new Schema({
   email: { type: String },
   first_name: { type: String },
   last_name: { type: String },
-  login_tokens: Array,
   password: { type: String },
   phone: { type: String },
+  photo: {
+    ref: 'Files',
+    type: Schema.Types.ObjectId,
+  },
   role: {
     default: 'user',
     enum: roles,
     type: String,
+  },
+  sessions: {
+    default: [],
+    type: Array,
   },
   status: {
     default: 'active',

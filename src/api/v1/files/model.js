@@ -1,10 +1,13 @@
-const mongoose = require('mongoose');
+const {
+  Schema, model,
+} = require('mongoose');
+const { mediaTypes } = require('../../../config');
 
 /**
  * Files Schema
  * @private
  */
-const filesSchema = new mongoose.Schema({
+const filesSchema = new Schema({
   created_at: {
     default: Date.now,
     type: Number,
@@ -17,8 +20,8 @@ const filesSchema = new mongoose.Schema({
     type: Number,
   },
   file_type: {
-    default: 'image',
-    enum: ['video', 'image'],
+    default: 'photo',
+    enum: mediaTypes,
     type: String,
   },
   is_deleted: {
@@ -36,7 +39,7 @@ const filesSchema = new mongoose.Schema({
   },
   user_id: {
     ref: 'User',
-    type: String,
+    type: Schema.Types.ObjectId,
   },
 });
 
@@ -61,4 +64,4 @@ filesSchema.statics = {};
 /**
  * @typedef User
  */
-module.exports = mongoose.model('Files', filesSchema);
+module.exports = model('Files', filesSchema);

@@ -1,6 +1,7 @@
 const httpStatus = require('http-status');
 const path = require('path');
 const fs = require('fs');
+const Busboy = require('busboy');
 const mongoose = require('mongoose');
 const Files = require('./model');
 const {
@@ -26,31 +27,25 @@ async function mkDir(folderPath) {
 exports.create = async (req, res, next) => {
   try {
     const {
-      busboy,
       user: { id },
       body: { fileType },
     } = req;
 
-    // Pipe it through busboy
+    const busboy = new Busboy({ headers: req.headers });
+
     req.pipe(busboy);
 
     busboy.on('file', async (fieldName, file, filename, encoding, mimeType) => {
       const userData = req.user;
       const folderPath = path.join(__dirname, `../../../../cdn/${userData.id}`);
-
-      console.log('filename', filename);
-      let extension = path.extname(filename);
-
-      extension = extension || '.png';
+      const extension = path.extname(filename);
       const mongoObjectId = mongoose.Types.ObjectId();
       const customFileName = mongoObjectId + extension;
 
       // make cdn folder if not exists
       await mkDir(path.join(__dirname, '../../../../cdn/'));
-
       // make user id based folder in cdn folder if not exist
       await mkDir(folderPath);
-
       // Create a write` stream of the new file
       const fsStream = fs.createWriteStream(path.join(folderPath, customFileName));
 

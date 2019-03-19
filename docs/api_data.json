@@ -496,5 +496,46 @@
     },
     "filename": "src/api/v1/user/routes.js",
     "groupTitle": "User"
+  },
+  {
+    "type": "delete",
+    "url": "v1/user",
+    "title": "Get single user or list of users",
+    "description": "<p>Get user or All users</p>",
+    "version": "1.0.0",
+    "name": "user",
+    "group": "User",
+    "permission": [
+      {
+        "name": "public"
+      }
+    ],
+    "parameter": {
+      "fields": {
+        "Parameter": [
+          {
+            "group": "Parameter",
+            "type": "String",
+            "optional": false,
+            "field": "userId",
+            "description": "<p>(Optional)  User id of any user else all users returned</p>"
+          }
+        ]
+      }
+    },
+    "success": {
+      "fields": {
+        "Ok 200": [
+          {
+            "group": "Ok 200",
+            "optional": false,
+            "field": "User",
+            "description": "<p>fetched successfully</p>"
+          }
+        ]
+      }
+    },
+    "filename": "src/api/v1/user/routes.js",
+    "groupTitle": "User"
   }
 ]

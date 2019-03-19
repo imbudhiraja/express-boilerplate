@@ -102,4 +102,20 @@ routes.route('/logout').put(authorize(), validate(refreshToken), controller.logo
 
 routes.route('/delete').delete(authorize(), controller.delete);
 
+/**
+ * @api {delete} v1/user Get single user or list of users
+ * @apiDescription Get user or All users
+ * @apiVersion 1.0.0
+ * @apiName user
+ * @apiGroup User
+ * @apiPermission public
+ *
+ * @apiParam  {String}  userId(Optional)  User id of any user else all users returned
+ *
+ * @apiSuccess (Ok 200)   User fetched successfully
+ *
+ */
+
+routes.route('/').get(authorize(), controller.users);
+
 module.exports = routes;

@@ -74,8 +74,7 @@ const authorize = async (req, res, next, roles) => {
       return next(apiError);
     }
 
-    const token = accessToken.split(' ')[1];
-    const tokenResult = jwt.decode(token, jwtSecret);
+    const tokenResult = jwt.decode(accessToken, jwtSecret);
 
     if (!tokenResult || !tokenResult.exp || !tokenResult._id) {
       apiError.message = 'Malformed Token';

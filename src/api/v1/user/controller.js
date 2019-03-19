@@ -21,8 +21,8 @@ async function generateTokenResponse(user, deviceInfo) {
   const refreshToken = uuidv4() + user._id;
 
   // eslint-disable-next-line no-param-reassign
-  user.login_tokens = [
-    ...user.login_tokens,
+  user.sessions = [
+    ...user.sessions,
     {
       ...deviceInfo,
       created_at: DateTime.local().toSeconds(),
@@ -52,7 +52,7 @@ exports.logout = async (req, res, next) => {
     const { refreshToken } = req.body;
 
     const user = await User.findOne({
-      login_tokens: {
+      sessions: {
         $elemMatch: {
           is_active: true,
           refresh_token: refreshToken,
@@ -67,7 +67,7 @@ exports.logout = async (req, res, next) => {
       });
     }
 
-    const loginTokens = user.login_tokens.map((token) => {
+    const sessions = user.sessions.map((token) => {
       const cloneToken = { ...token };
 
       if (cloneToken.refresh_token === refreshToken) {
@@ -78,7 +78,7 @@ exports.logout = async (req, res, next) => {
       return cloneToken;
     });
 
-    await User.updateOne({ _id: user._id }, { login_tokens: loginTokens });
+    await User.updateOne({ _id: user._id }, { sessions });
 
     return res.status(httpStatus.NO_CONTENT).json();
   } catch (error) {
@@ -95,7 +95,7 @@ exports.refreshToken = async (req, res, next) => {
     const { refreshToken } = req.body;
 
     const user = await User.findOne({
-      login_tokens: {
+      sessions: {
         $elemMatch: {
           is_active: true,
           refresh_token: refreshToken,
@@ -111,7 +111,7 @@ exports.refreshToken = async (req, res, next) => {
     }
     const refreshTokenKey = uuidv4() + user._id;
 
-    const loginTokens = user.login_tokens.map((token) => {
+    const sessions = user.sessions.map((token) => {
       const cloneToken = { ...token };
 
       if (cloneToken.refresh_token === refreshToken) {
@@ -122,7 +122,7 @@ exports.refreshToken = async (req, res, next) => {
       return cloneToken;
     });
 
-    await User.updateOne({ _id: user._id }, { login_tokens: loginTokens });
+    await User.updateOne({ _id: user._id }, { sessions });
 
     const expiresIn = DateTime.local()
       .plus({ minutes: jwtExpirationInterval })
@@ -157,10 +157,10 @@ exports.login = async (req, res, next) => {
         _id: 1,
         email: 1,
         first_name: 1,
-        is_active: 1,
-        is_deleted: 1,
         last_name: 1,
         phone: 1,
+        sessions: 1,
+        status: 1,
       }
     );
 
@@ -171,16 +171,16 @@ exports.login = async (req, res, next) => {
       });
     }
 
-    if (!user.is_active) {
+    if (user.status === 'blocked') {
       throw new APIError({
         message: 'Your account has been suspended by admin.',
         status: httpStatus.UNAVAILABLE_FOR_LEGAL_REASONS,
       });
     }
 
-    if (user.is_deleted) {
+    if (user.status === 'deleted') {
       throw new APIError({
-        message: 'You have deleted you account. Please signup again to conitnue',
+        message: 'You have deleted you account. Please signup again to continue',
         status: httpStatus.UNAVAILABLE_FOR_LEGAL_REASONS,
       });
     }
@@ -233,7 +233,6 @@ exports.signup = async (req, res, next) => {
       first_name: firstName,
       last_name: lastName,
       password,
-      role: 'brand',
     }).save();
 
     const token = await generateTokenResponse(user, {
@@ -271,16 +270,55 @@ exports.delete = async (req, res, next) => {
       first_name: '',
       is_deleted: true,
       last_name: '',
-      login_tokens: [],
       password: '',
       phone: '',
       role: '',
+      sessions: [],
+      status: 'deleted',
       updated_at: DateTime.local().toSeconds(),
     };
 
     await User.findOneAndUpdate(query, update);
 
     return res.status(httpStatus.NO_CONTENT).json();
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.users = async (req, res, next) => {
+  try {
+    const {
+      user,
+      params: { userId },
+    } = req;
+
+    let query = {};
+
+    if (userId) {
+      query = { _id: userId };
+    } else {
+      query = { _id: { $nin: user._id } };
+    }
+
+    const options = {
+      email: 1,
+      first_name: 1,
+      last_name: 1,
+      phone: 1,
+      photo: 1,
+      role: 1,
+      status: 1,
+    };
+
+    let users = await User.find(query, options);
+
+    if (userId) {
+      // eslint-disable-next-line prefer-destructuring
+      users = users[0];
+    }
+
+    return res.status(httpStatus.OK).json(users);
   } catch (error) {
     return next(error);
   }

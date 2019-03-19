@@ -23,15 +23,18 @@ module.exports = {
   // POST /v1/auth/register
   register: {
     body: {
-      brandName: Joi.string()
-        .lowercase()
-        .required(),
       clientType: Joi.string()
         .valid('browser', 'ios', 'android')
         .required(),
       deviceToken: Joi.string().optional(),
       email: Joi.string()
         .email()
+        .lowercase()
+        .required(),
+      firstName: Joi.string()
+        .lowercase()
+        .required(),
+      lastName: Joi.string()
         .lowercase()
         .required(),
       password: Joi.string()
