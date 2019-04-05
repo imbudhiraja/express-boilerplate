@@ -1,12 +1,27 @@
-// const RefreshToken = require('./refreshToken.model');
-// const moment = require('moment-timezone');
+/* eslint-disable max-lines */
+const bcrypt = require('bcryptjs');
 const httpStatus = require('http-status');
 const { DateTime } = require('luxon');
 const uuidv4 = require('uuid/v4');
-const User = require('./modal');
-const APIError = require('../../../utils/api-error');
-const { jwtExpirationInterval } = require('../../../config');
-const { snakeToCamelCase } = require('../../../utils/methods');
+const User = require('./model');
+const { Error } = require('../../../utils/api-response');
+const { env } = require('../../../config');
+const {
+  jwtExpirationInterval,
+  baseUrl,
+  emails: {
+    templates: {
+      'reset-password': resetPasswordTemplate, verification, 'invite-email': inviteEmail,
+    },
+  },
+  website,
+} = require('../../../config');
+const {
+  capitalizeEachLetter, generateRandom,
+} = require('../../../utils/methods');
+const sendMail = require('../../../utils/mail-services');
+const { keysToCamel } = require('../../../utils/snake');
+const { deleteFile } = require('../files/controller');
 
 /**
  * @async
@@ -17,6 +32,7 @@ const { snakeToCamelCase } = require('../../../utils/methods');
  * @returns {object} access token object
  * @private
  */
+
 async function generateTokenResponse(user, deviceInfo) {
   const refreshToken = uuidv4() + user._id;
 
@@ -25,6 +41,7 @@ async function generateTokenResponse(user, deviceInfo) {
     ...user.sessions,
     {
       ...deviceInfo,
+      access_token: user.token(),
       created_at: DateTime.local().toSeconds(),
       is_active: true,
       refresh_token: refreshToken,
@@ -61,24 +78,19 @@ exports.logout = async (req, res, next) => {
     });
 
     if (!user) {
-      throw new APIError({
+      throw new Error({
         message: 'Refresh token did not match',
         status: httpStatus.CONFLICT,
       });
     }
 
-    const sessions = user.sessions.map((token) => {
-      const cloneToken = { ...token };
-
-      if (cloneToken.refresh_token === refreshToken) {
-        cloneToken.is_active = false;
-        cloneToken.updated_at = DateTime.local().toSeconds();
-      }
-
-      return cloneToken;
-    });
-
-    await User.updateOne({ _id: user._id }, { sessions });
+    await User.findOneAndUpdate(
+      {
+        _id: user._id,
+        'sessions.refresh_token': refreshToken,
+      },
+      { $pull: { sessions: { refresh_token: refreshToken } } }
+    );
 
     return res.status(httpStatus.NO_CONTENT).json();
   } catch (error) {
@@ -104,39 +116,33 @@ exports.refreshToken = async (req, res, next) => {
     });
 
     if (!user) {
-      throw new APIError({
+      throw new Error({
         message: 'Refresh token did not match',
         status: httpStatus.CONFLICT,
       });
     }
     const refreshTokenKey = uuidv4() + user._id;
 
-    const sessions = user.sessions.map((token) => {
-      const cloneToken = { ...token };
-
-      if (cloneToken.refresh_token === refreshToken) {
-        cloneToken.refresh_token = refreshTokenKey;
-        cloneToken.updated_at = DateTime.local().toSeconds();
+    await User.updateOne(
+      {
+        _id: user._id,
+        'sessions.refresh_token': refreshToken,
+      },
+      {
+        'sessions.$.refresh_token': refreshTokenKey,
+        'sessions.$.updated_at': DateTime.local().toSeconds(),
       }
-
-      return cloneToken;
-    });
-
-    await User.updateOne({ _id: user._id }, { sessions });
+    );
 
     const expiresIn = DateTime.local()
       .plus({ minutes: jwtExpirationInterval })
       .toSeconds();
 
-    res.status(httpStatus.OK);
+    res.set('authorization', user.token());
+    res.set('x-refresh-token', refreshTokenKey);
+    res.set('x-token-expiry-time', expiresIn);
 
-    return res.json({
-      token: {
-        accessToken: user.token(),
-        expiresIn,
-        refreshToken: refreshTokenKey,
-      },
-    });
+    return res.status(httpStatus.NO_CONTENT).json();
   } catch (error) {
     return next(error);
   }
@@ -155,31 +161,41 @@ exports.login = async (req, res, next) => {
       { email },
       {
         _id: 1,
+        company_id: 1,
         email: 1,
         first_name: 1,
+        is_verified: 1,
         last_name: 1,
         phone: 1,
+        photo: 1,
         sessions: 1,
         status: 1,
       }
     );
 
     if (!user || !user.passwordMatches(password)) {
-      throw new APIError({
+      throw new Error({
         message: 'Credentials did not match',
         status: httpStatus.CONFLICT,
       });
     }
 
+    if (!user.is_verified) {
+      throw new Error({
+        message: 'Your email address is not verified. Please verify your email to continue.',
+        status: httpStatus.NOT_ACCEPTABLE,
+      });
+    }
+
     if (user.status === 'blocked') {
-      throw new APIError({
+      throw new Error({
         message: 'Your account has been suspended by admin.',
         status: httpStatus.UNAVAILABLE_FOR_LEGAL_REASONS,
       });
     }
 
     if (user.status === 'deleted') {
-      throw new APIError({
+      throw new Error({
         message: 'You have deleted you account. Please signup again to continue',
         status: httpStatus.UNAVAILABLE_FOR_LEGAL_REASONS,
       });
@@ -190,19 +206,19 @@ exports.login = async (req, res, next) => {
       device_token: deviceToken,
     });
 
-    res.set('Authorization', token.accessToken);
+    res.set('authorization', token.accessToken);
     res.set('x-refresh-token', token.refreshToken);
     res.set('x-token-expiry-time', token.expiresIn);
     res.status(httpStatus.OK);
 
-    console.log('snakeToCamelCase==> ', snakeToCamelCase(user));
-
     return res.json({
       _id: user._id,
+      companyId: user.company_id,
       email: user.email,
       firstName: user.first_name,
       lastName: user.last_name,
-      phoneNumber: user.phone,
+      phone: user.phone || null,
+      photo: user.photo || null,
     });
   } catch (error) {
     return next(error);
@@ -213,45 +229,43 @@ exports.login = async (req, res, next) => {
  * Creates a new user if valid details
  * @public
  */
-exports.signup = async (req, res, next) => {
+
+// eslint-disable-next-line consistent-return
+exports.register = async (req, res, next) => {
   try {
     const {
-      firstName, lastName, email, password, clientType, deviceToken,
+      firstName, lastName, email, password,
     } = req.body;
 
     const isEmailExists = await User.findOne({ email });
 
     if (isEmailExists) {
-      throw new APIError({
-        message: 'Email address is already exists',
+      throw new Error({
+        message: 'Email address is already exists.',
         status: httpStatus.CONFLICT,
       });
     }
+    const token = generateRandom();
 
-    const user = await new User({
+    await new User({
       email,
       first_name: firstName,
       last_name: lastName,
       password,
+      'verify_tokens.email': token,
     }).save();
 
-    const token = await generateTokenResponse(user, {
-      client_type: clientType,
-      device_token: deviceToken,
-    });
+    const msg = {
+      dynamic_template_data: {
+        name: capitalizeEachLetter(`${firstName} ${lastName}`),
+        url: `${baseUrl}/v1/user/email-verification/${token}`,
+      },
+      templateId: verification,
+      to: email,
+    };
 
-    res.set('Authorization', token.accessToken);
-    res.set('x-refresh-token', token.refreshToken);
-    res.set('x-token-expiry-time', token.expiresIn);
-    res.status(httpStatus.CREATED);
-
-    return res.json({
-      _id: user._id,
-      email: user.email,
-      firstName: user.first_name,
-      lastName: user.last_name,
-      phoneNumber: user.phone,
-    });
+    res.status(httpStatus.CREATED).json();
+    sendMail(msg);
   } catch (error) {
     return next(error);
   }
@@ -268,7 +282,7 @@ exports.delete = async (req, res, next) => {
     const query = { _id: user._id };
     const update = {
       first_name: '',
-      is_deleted: true,
+      is_verified: false,
       last_name: '',
       password: '',
       phone: '',
@@ -290,20 +304,30 @@ exports.users = async (req, res, next) => {
   try {
     const {
       user,
-      params: { userId },
+      query: {
+        companyId, userId,
+      },
     } = req;
 
     let query = {};
 
-    if (userId) {
+    if (companyId) {
+      query = { company_id: companyId };
+    } else if (userId) {
       query = { _id: userId };
     } else {
-      query = { _id: { $nin: user._id } };
+      query = {
+        _id: { $nin: user._id },
+        role: { $ne: 'admin' },
+      };
     }
 
     const options = {
+      _id: 1,
+      company_id: 1,
       email: 1,
       first_name: 1,
+      is_verified: 1,
       last_name: 1,
       phone: 1,
       photo: 1,
@@ -313,12 +337,363 @@ exports.users = async (req, res, next) => {
 
     let users = await User.find(query, options);
 
-    if (userId) {
-      // eslint-disable-next-line prefer-destructuring
-      users = users[0];
+    if (users.length > 0 && userId) {
+      const [singleUser] = users;
+
+      users = keysToCamel(singleUser.toObject());
+    } else {
+      users = users.map((singleUser) => keysToCamel(singleUser.toObject()));
     }
 
     return res.status(httpStatus.OK).json(users);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+/**
+ * Email Verification
+ * @private
+ */
+exports.emailVerification = async (req, res, next) => {
+  try {
+    const { params: { token } } = req;
+    const query = { 'verify_tokens.email': token };
+    const update = {
+      is_verified: true,
+      'verify_tokens.email': '',
+    };
+
+    await User.findOneAndUpdate(query, update);
+
+    return res.status(httpStatus.PERMANENT_REDIRECT).redirect(website);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+/**
+ * Forgot Password
+ * @public
+ */
+exports.forgotPassword = async (req, res, next) => {
+  try {
+    const { body: { email } } = req;
+    const query = { email };
+
+    const user = await User.findOne(query);
+
+    if (!user) {
+      throw new Error({
+        message: 'Please enter your registered email address.',
+        status: httpStatus.BAD_REQUEST,
+      });
+    }
+    const token = generateRandom();
+    const msg = {
+      dynamic_template_data: {
+        name: capitalizeEachLetter(`${user.first_name} ${user.last_name}`),
+        url: `${website}/reset-password/${token}`,
+      },
+      templateId: resetPasswordTemplate,
+      to: email,
+    };
+
+    await User.findOneAndUpdate(query, { 'verify_tokens.reset_password': token });
+
+    sendMail(msg);
+
+    res.status(httpStatus.NO_CONTENT).json();
+
+    return true;
+  } catch (error) {
+    return next(error);
+  }
+};
+
+/**
+ * Reset Password
+ * @public
+ */
+exports.resetPassword = async (req, res, next) => {
+  try {
+    const {
+      body: {
+        password, token,
+      },
+    } = req;
+    const query = { 'verify_tokens.reset_password': token };
+    const user = await User.findOne(query);
+
+    if (!user) {
+      throw new Error({
+        message: 'Not an authorized user',
+        status: httpStatus.UNAUTHORIZED,
+      });
+    }
+
+    const isPasswordMatches = await user.passwordMatches(password);
+
+    if (isPasswordMatches) {
+      throw new Error({
+        message: 'New password can not same as old password',
+        status: httpStatus.CONFLICT,
+      });
+    }
+
+    const rounds = env === 'test' ? 1 : 10;
+    const hash = await bcrypt.hash(password, rounds);
+
+    await User.findOneAndUpdate(query, {
+      password: hash,
+      'verify_tokens.reset_password': '',
+    });
+
+    return res.status(httpStatus.NO_CONTENT).json();
+  } catch (error) {
+    return next(error);
+  }
+};
+
+/**
+ * Change Password
+ * @public
+ */
+exports.changePassword = async (req, res, next) => {
+  try {
+    const {
+      body: {
+        password, oldPassword,
+      },
+      user,
+    } = req;
+
+    const isPasswordMatches = await user.passwordMatches(oldPassword);
+    const isSamePassword = await user.passwordMatches(password);
+
+    if (!isPasswordMatches) {
+      throw new Error({
+        message: 'Old password does not matched.',
+        status: httpStatus.CONFLICT,
+      });
+    }
+
+    if (isSamePassword) {
+      throw new Error({
+        message: 'New password can not same as old password.',
+        status: httpStatus.CONFLICT,
+      });
+    }
+
+    const rounds = env === 'test' ? 1 : 10;
+    const hash = await bcrypt.hash(password, rounds);
+
+    await User.findOneAndUpdate({ _id: user._id }, { password: hash });
+
+    return res.status(httpStatus.NO_CONTENT).json();
+  } catch (error) {
+    return next(error);
+  }
+};
+
+/**
+ * Get User
+ * @private
+ */
+
+const getUsers = async (users, company) => Promise.all(
+  users.map(async (data) => {
+    const token = generateRandom();
+    const password = generateRandom(8, true);
+    const rounds = env === 'test' ? 1 : 10;
+    const hash = await bcrypt.hash(password, rounds);
+
+    return {
+      company_id: company,
+      email: data.email,
+      first_name: data.firstName,
+      last_name: data.lastName,
+      passkey: password,
+      password: hash,
+      role: data.role,
+      status: 'pending',
+      'verify_tokens.email': token,
+    };
+  })
+);
+
+/**
+ * Add People
+ * @public
+ */
+
+exports.addPeople = async (req, res, next) => {
+  try {
+    const {
+      body: { users },
+      user,
+    } = req;
+
+    const team = await getUsers(users, user.company_id);
+
+    let result = await User.insertMany(team, {
+      _id: 1,
+      email: 1,
+      first_name: 1,
+      is_verified: 1,
+      last_name: 1,
+      phone: 1,
+      photo: 1,
+      role: 1,
+      status: 1,
+    });
+
+    team.forEach(({ // eslint-disable-next-line camelcase
+      email, first_name, last_name, 'verify_tokens.email': token, passkey,
+    }) => {
+      const msg = {
+        dynamic_template_data: {
+          // eslint-disable-next-line camelcase
+          name: capitalizeEachLetter(`${first_name} ${last_name}`),
+          password: passkey,
+          url: `${baseUrl}/v1/user/email-verification/${token}`,
+        },
+        templateId: inviteEmail,
+        to: email,
+      };
+
+      sendMail(msg);
+    });
+
+    result = JSON.stringify(result);
+
+    result = keysToCamel(JSON.parse(result));
+
+    return res.status(httpStatus.CREATED).json(result);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+/**
+ * User Available
+ * @public
+ */
+
+exports.userAvailable = async (req, res, next) => {
+  try {
+    const { email } = req.query;
+    const user = await User.findOne({ email });
+
+    if (user) {
+      throw new Error({
+        message: 'User with the given email address is already on platform.',
+        status: httpStatus.CONFLICT,
+      });
+    }
+
+    return res.status(httpStatus.NO_CONTENT).json();
+  } catch (error) {
+    return next(error);
+  }
+};
+
+/**
+ * Block/Unblock user
+ * @public
+ */
+
+exports.blockUnblock = async (req, res, next) => {
+  try {
+    const {
+      body: { status },
+      params: { userId },
+      user,
+    } = req;
+    const teamMember = await User.findOne({ _id: userId });
+
+    if (!user.role.includes('admin')) {
+      throw new Error({
+        message: 'You are not authorized to perform this action',
+        status: httpStatus.CONFLICT,
+      });
+    }
+
+    let userStatus = status;
+
+    if (!teamMember.is_verified && status === 'active') {
+      userStatus = 'pending';
+    }
+
+    await User.findOneAndUpdate({ _id: userId }, { status: userStatus });
+
+    return res.status(httpStatus.NO_CONTENT).json();
+  } catch (error) {
+    return next(error);
+  }
+};
+
+/**
+ * Edit Profile
+ * @public
+ */
+
+exports.editProfile = async (req, res, next) => {
+  try {
+    const {
+      body: {
+        firstName, lastName, photo,
+      },
+      user,
+    } = req;
+
+    if (photo && user.photo && user.photo.toString() !== photo) {
+      await deleteFile(user.photo, user._id);
+    }
+
+    let updateFields = {
+      first_name: firstName,
+      last_name: lastName,
+    };
+
+    if (photo) {
+      updateFields = {
+        ...updateFields,
+        photo,
+      };
+    }
+
+    await User.findOneAndUpdate({ _id: user._id }, updateFields);
+
+    return res.status(httpStatus.NO_CONTENT).json();
+  } catch (error) {
+    return next(error);
+  }
+};
+
+/**
+ * Change Role
+ * @public
+ */
+
+exports.changeRole = async (req, res, next) => {
+  try {
+    const {
+      body: { role },
+      params: { userId },
+      user,
+    } = req;
+
+    if (!user.role.includes('admin')) {
+      throw new Error({
+        message: 'You are not authorized to perform this action',
+        status: httpStatus.CONFLICT,
+      });
+    }
+
+    await User.findOneAndUpdate({ _id: userId }, { role });
+
+    return res.status(httpStatus.NO_CONTENT).json();
   } catch (error) {
     return next(error);
   }

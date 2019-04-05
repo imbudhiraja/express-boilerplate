@@ -9,14 +9,9 @@ module.exports = async (payload) => {
     ...payload,
   };
 
-  console.log('Sending email to: ', payload);
-
   try {
-    const response = await sendGridEmail.send(msg);
-
-    response.forEach((mailStatus) => {
-      console.log(`Mail has been sent successfully to ${mailStatus.email}. Mail Status is: ${mailStatus.statusCode}`);
-    });
+    await sendGridEmail.send(msg);
+    console.log('Mail has been sent successfully.');
   } catch (err) {
     console.log(`Mail Sent Error. Error Message is: ${err.message}`);
   }

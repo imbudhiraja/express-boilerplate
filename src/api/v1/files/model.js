@@ -1,13 +1,11 @@
-const {
-  Schema, model,
-} = require('mongoose');
+const mongoose = require('mongoose');
 const { mediaTypes } = require('../../../config');
 
 /**
  * Files Schema
  * @private
  */
-const filesSchema = new Schema({
+const Files = new mongoose.Schema({
   created_at: {
     default: Date.now,
     type: Number,
@@ -39,7 +37,7 @@ const filesSchema = new Schema({
   },
   user_id: {
     ref: 'User',
-    type: Schema.Types.ObjectId,
+    type: mongoose.Schema.Types.ObjectId,
   },
 });
 
@@ -47,21 +45,24 @@ const filesSchema = new Schema({
  * Add your
  * - pre-save hooks
  * - validations
- * - virtuals
+ * - victuals
  */
-filesSchema.pre('save', async () => {});
+Files.pre('save', async () => {});
 
 /**
  * Methods
  */
-filesSchema.method({});
+Files.method({});
 
 /**
  * Statics
  */
-filesSchema.statics = {};
+Files.statics = {};
 
 /**
- * @typedef User
+ * @typedef Files
  */
-module.exports = model('Files', filesSchema);
+
+const model = mongoose.model('Files', Files);
+
+module.exports = model;

@@ -7,6 +7,7 @@ const Files = require('./model');
 const {
   resizeImage, authorize,
 } = require('../../../utils/methods');
+const { Error } = require('../../../utils/api-response');
 
 const asyncFsMkdir = Promise.promisify(fs.mkdir);
 
@@ -70,8 +71,7 @@ exports.create = async (req, res, next) => {
 
         await saveFile.save();
 
-        res.status(httpStatus.CREATED);
-        res.json(saveFile);
+        res.status(httpStatus.CREATED).json({ _id: mongoObjectId });
       });
     });
   } catch (e) {
@@ -85,12 +85,23 @@ exports.download = async (req, res, next) => {
       query: {
         width, height, format,
       },
+      params: { _id },
     } = req;
 
     await authorize(req, res, next);
 
-    const { params: { _id } } = req;
-    const file = await Files.findOne({ _id });
+    const file = await Files.findOne({
+      _id,
+      is_deleted: false,
+    });
+
+    if (!file) {
+      throw new Error({
+        message: 'File is not available to download',
+        status: httpStatus.BAD_REQUEST,
+      });
+    }
+
     const imagePath = `../../../../cdn/${file.user_id}/${file._id}${file.file_extension}`;
 
     // Set the content-type of the response
@@ -102,5 +113,45 @@ exports.download = async (req, res, next) => {
     resizeImage(filePath, format, Number(width), Number(height)).pipe(res);
   } catch (e) {
     next(e);
+  }
+};
+
+const deleteFile = async (fileId, userId) => {
+  const query = {
+    _id: fileId,
+    is_deleted: false,
+    user_id: userId,
+  };
+
+  // const file = await Files.findOne(query);
+  // if (!file) {
+  //   throw new Error({
+  //     message: 'File is deleted or you dont have permissions to delete this file',
+  //     status: httpStatus.BAD_REQUEST,
+  //   });
+  // }
+  // const imagePath = `../../../../cdn/${file.user_id}/${file._id}${file.file_extension}`;
+  // const filePath = path.join(__dirname, imagePath);
+  // fs.unlinkSync(filePath);
+
+  const result = await Files.findOneAndUpdate(query, { is_deleted: true });
+
+  return result;
+};
+
+exports.deleteFile = deleteFile;
+
+exports.delete = async (req, res, next) => {
+  try {
+    const {
+      params: { _id },
+      user,
+    } = req;
+
+    await deleteFile(_id, user._id);
+
+    return res.status(httpStatus.NO_CONTENT).json();
+  } catch (e) {
+    return next(e);
   }
 };

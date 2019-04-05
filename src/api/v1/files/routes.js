@@ -1,7 +1,9 @@
 const express = require('express');
 const validate = require('express-validation');
 const controller = require('./controller');
-const { download } = require('./validation');
+const {
+  deleteFile, download,
+} = require('./validation');
 const { authorize } = require('../../../middlewares/auth');
 
 const routes = express.Router();
@@ -21,14 +23,13 @@ const routes = express.Router();
  *
  * @apiError (Bad Request 400)   ValidationError  Some parameters may contain invalid values
  * @apiError (Unauthorized 401)  Unauthorized     Only authenticated users can create the data
- * @apiError (Forbidden 403)     Forbidden        Only admins can create the data
  */
 
 routes.route('/').post(authorize(), controller.create);
 
 /**
  * @api {get} v1/files/:_id Download file
- * @apiDescription Upload file
+ * @apiDescription Download file
  * @apiVersion 1.0.0
  * @apiName getFile
  * @apiGroup Files
@@ -41,8 +42,20 @@ routes.route('/').post(authorize(), controller.create);
 
  * @apiError (Bad Request 400)   ValidationError  Some parameters may contain invalid values
  * @apiError (Unauthorized 401)  Unauthorized     Only authenticated users can create the data
- * @apiError (Forbidden 403)     Forbidden        Only admins can create the data
  */
 routes.route('/:_id').get(validate(download), controller.download);
+
+/**
+ * @api {get} v1/files/:_id Delete file
+ * @apiDescription Delete file
+ * @apiVersion 1.0.0
+ * @apiName Delete any uploaded file
+ * @apiGroup Files
+ * @apiPermission public
+ *
+ * @apiError (Bad Request 400)   ValidationError  Some parameters may contain invalid values
+ * @apiError (Unauthorized 401)  Unauthorized     Only authenticated users can create the data
+ */
+routes.route('/:_id').delete(validate(deleteFile), authorize(), controller.delete);
 
 module.exports = routes;

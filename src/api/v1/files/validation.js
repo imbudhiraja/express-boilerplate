@@ -1,7 +1,9 @@
 const Joi = require('joi');
 
 module.exports = {
+  deleteFile: { params: { _id: Joi.string().required() } },
   download: {
+    params: { _id: Joi.string().required() },
     query: {
       accessToken: Joi.string().required(),
       format: Joi.string()

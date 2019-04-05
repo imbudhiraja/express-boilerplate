@@ -1,7 +1,5 @@
 /* eslint-disable no-invalid-this */
-const {
-  model, Schema,
-} = require('mongoose');
+const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
 const { DateTime } = require('luxon');
@@ -15,32 +13,48 @@ const {
  * @private
  */
 
-const userSchema = new Schema({
+const userSchema = new mongoose.Schema({
   created_at: {
     default: Date.now,
     type: Number,
   },
   email: { type: String },
   first_name: { type: String },
+  is_verified: {
+    default: false,
+    type: Boolean,
+  },
   last_name: { type: String },
   password: { type: String },
-  phone: { type: String },
   photo: {
     ref: 'Files',
-    type: Schema.Types.ObjectId,
+    type: mongoose.Schema.Types.ObjectId,
   },
   role: {
     default: 'user',
     enum: roles,
     type: String,
   },
-  sessions: {
-    default: [],
-    type: Array,
-  },
+  sessions: [
+    {
+      access_token: { type: String },
+      client_type: { type: String },
+      created_at: {
+        default: DateTime.local().toSeconds(),
+        type: Number,
+      },
+      device_token: { type: String },
+      is_active: {
+        default: true,
+        type: String,
+      },
+      refresh_token: { type: String },
+      socket_id: { type: String },
+    },
+  ],
   status: {
     default: 'active',
-    enum: ['active', 'blocked', 'deleted'],
+    enum: ['active', 'blocked', 'deleted', 'pending'],
     type: String,
   },
   updated_at: {
@@ -52,7 +66,7 @@ const userSchema = new Schema({
       default: '',
       type: String,
     },
-    reset_pass: {
+    reset_password: {
       default: '',
       type: String,
     },
@@ -108,4 +122,12 @@ userSchema.statics = {};
 /**
  * @typedef User
  */
-module.exports = model('User', userSchema);
+
+const model = mongoose.model('User', userSchema);
+
+model.createIndexes({
+  first_name: 1,
+  last_name: 1,
+});
+
+module.exports = model;

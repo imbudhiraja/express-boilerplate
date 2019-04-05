@@ -12,9 +12,11 @@ const {
 } = require('./config');
 
 const ddosInstance = new Ddos(ddosConfig);
+
 const corsOptions = {
-  origin(origin, callback) {
-    if (!whitelist || whitelist.indexOf(origin) !== -1) {
+  exposedHeaders: 'authorization, x-refresh-token, x-token-expiry-time',
+  origin: (origin, callback) => {
+    if (!whitelist || whitelist.includes(origin)) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
