@@ -11,7 +11,7 @@ const {
   baseUrl,
   emails: {
     templates: {
-      'reset-password': resetPasswordTemplate, verification, 'invite-email': inviteEmail,
+      'reset-password': resetPasswordTemplate, verification,
     },
   },
   website,
@@ -172,8 +172,9 @@ exports.login = async (req, res, next) => {
         status: 1,
       }
     );
+    const passwordMatches = await user.passwordMatches(password);
 
-    if (!user || !user.passwordMatches(password)) {
+    if (!user || !passwordMatches) {
       throw new Error({
         message: 'Credentials did not match',
         status: httpStatus.CONFLICT,
@@ -465,9 +466,11 @@ exports.changePassword = async (req, res, next) => {
       body: {
         password, oldPassword,
       },
-      user,
+      user: { _id: userId },
     } = req;
 
+    const query = { _id: userId };
+    const user = await User.findOne(query);
     const isPasswordMatches = await user.passwordMatches(oldPassword);
     const isSamePassword = await user.passwordMatches(password);
 
@@ -489,143 +492,6 @@ exports.changePassword = async (req, res, next) => {
     const hash = await bcrypt.hash(password, rounds);
 
     await User.findOneAndUpdate({ _id: user._id }, { password: hash });
-
-    return res.status(httpStatus.NO_CONTENT).json();
-  } catch (error) {
-    return next(error);
-  }
-};
-
-/**
- * Get User
- * @private
- */
-
-const getUsers = async (users, company) => Promise.all(
-  users.map(async (data) => {
-    const token = generateRandom();
-    const password = generateRandom(8, true);
-    const rounds = env === 'test' ? 1 : 10;
-    const hash = await bcrypt.hash(password, rounds);
-
-    return {
-      company_id: company,
-      email: data.email,
-      first_name: data.firstName,
-      last_name: data.lastName,
-      passkey: password,
-      password: hash,
-      role: data.role,
-      status: 'pending',
-      'verify_tokens.email': token,
-    };
-  })
-);
-
-/**
- * Add People
- * @public
- */
-
-exports.addPeople = async (req, res, next) => {
-  try {
-    const {
-      body: { users },
-      user,
-    } = req;
-
-    const team = await getUsers(users, user.company_id);
-
-    let result = await User.insertMany(team, {
-      _id: 1,
-      email: 1,
-      first_name: 1,
-      is_verified: 1,
-      last_name: 1,
-      phone: 1,
-      photo: 1,
-      role: 1,
-      status: 1,
-    });
-
-    team.forEach(({ // eslint-disable-next-line camelcase
-      email, first_name, last_name, 'verify_tokens.email': token, passkey,
-    }) => {
-      const msg = {
-        dynamic_template_data: {
-          // eslint-disable-next-line camelcase
-          name: capitalizeEachLetter(`${first_name} ${last_name}`),
-          password: passkey,
-          url: `${baseUrl}/v1/user/email-verification/${token}`,
-        },
-        templateId: inviteEmail,
-        to: email,
-      };
-
-      sendMail(msg);
-    });
-
-    result = JSON.stringify(result);
-
-    result = keysToCamel(JSON.parse(result));
-
-    return res.status(httpStatus.CREATED).json(result);
-  } catch (error) {
-    return next(error);
-  }
-};
-
-/**
- * User Available
- * @public
- */
-
-exports.userAvailable = async (req, res, next) => {
-  try {
-    const { email } = req.query;
-    const user = await User.findOne({ email });
-
-    if (user) {
-      throw new Error({
-        message: 'User with the given email address is already on platform.',
-        status: httpStatus.CONFLICT,
-      });
-    }
-
-    return res.status(httpStatus.NO_CONTENT).json();
-  } catch (error) {
-    return next(error);
-  }
-};
-
-/**
- * Block/Unblock user
- * @public
- */
-
-exports.blockUnblock = async (req, res, next) => {
-  try {
-    const {
-      body: { status },
-      params: { userId },
-      user,
-    } = req;
-    const teamMember = await User.findOne({ _id: userId });
-
-    if (!user.role.includes('admin')) {
-      throw new Error({
-        message: 'You are not authorized to perform this action',
-        status: httpStatus.CONFLICT,
-      });
-    }
-
-    let userStatus = status;
-
-    if (!teamMember.is_verified && status === 'active') {
-      userStatus = 'pending';
-    }
-
-    await User.findOneAndUpdate({ _id: userId }, { status: userStatus });
 
     return res.status(httpStatus.NO_CONTENT).json();
   } catch (error) {
@@ -664,34 +530,6 @@ exports.editProfile = async (req, res, next) => {
     }
 
     await User.findOneAndUpdate({ _id: user._id }, updateFields);
-
-    return res.status(httpStatus.NO_CONTENT).json();
-  } catch (error) {
-    return next(error);
-  }
-};
-
-/**
- * Change Role
- * @public
- */
-
-exports.changeRole = async (req, res, next) => {
-  try {
-    const {
-      body: { role },
-      params: { userId },
-      user,
-    } = req;
-
-    if (!user.role.includes('admin')) {
-      throw new Error({
-        message: 'You are not authorized to perform this action',
-        status: httpStatus.CONFLICT,
-      });
-    }
-
-    await User.findOneAndUpdate({ _id: userId }, { role });
 
     return res.status(httpStatus.NO_CONTENT).json();
   } catch (error) {

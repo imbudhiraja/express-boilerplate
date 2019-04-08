@@ -100,7 +100,9 @@ userSchema.pre('save', async function save(next) {
  */
 userSchema.method({
   async passwordMatches(password) {
-    return bcrypt.compare(password, this.password);
+    const result = await bcrypt.compare(password, this.password);
+
+    return result;
   },
   token() {
     const date = DateTime.local();
