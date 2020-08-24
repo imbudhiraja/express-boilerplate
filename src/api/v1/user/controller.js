@@ -536,3 +536,89 @@ exports.editProfile = async (req, res, next) => {
     return next(error);
   }
 };
+
+/**	
+ * Block/Unblock user	
+ * @public	
+ */	
+
+exports.blockUnblock = async (req, res, next) => {	
+  try {	
+    const {	
+      body: { status },	
+      params: { userId },	
+      user,	
+    } = req;	
+    const teamMember = await User.findOne({ _id: userId });	
+
+    if (!user.role.includes('admin')) {	
+      throw new Error({	
+        message: 'You are not authorized to perform this action',	
+        status: httpStatus.CONFLICT,	
+      });	
+    }	
+
+    let userStatus = status;	
+
+    if (!teamMember.is_verified && status === 'active') {	
+      userStatus = 'pending';	
+    }	
+
+    await User.findOneAndUpdate({ _id: userId }, { status: userStatus });	
+
+    return res.status(httpStatus.NO_CONTENT).json();	
+  } catch (error) {	
+    return next(error);	
+  }	
+};
+
+/**	
+ * Change Role	
+ * @public	
+ */	
+
+exports.changeRole = async (req, res, next) => {	
+  try {	
+    const {	
+      body: { role },	
+      params: { userId },	
+      user,	
+    } = req;	
+
+    if (!user.role.includes('admin')) {	
+      throw new Error({	
+        message: 'You are not authorized to perform this action',	
+        status: httpStatus.CONFLICT,	
+      });	
+    }	
+
+    await User.findOneAndUpdate({ _id: userId }, { role });	
+
+    return res.status(httpStatus.NO_CONTENT).json();	
+  } catch (error) {	
+    return next(error);	
+  }	
+};
+
+/**	
+ * User Available	
+ * @public	
+ */	
+
+exports.userAvailable = async (req, res, next) => {	
+  try {	
+    const { email } = req.query;	
+    const user = await User.findOne({ email });	
+
+    if (user) {	
+      throw new Error({	
+        message: 'User with the given email address is already on platform.',	
+        status: httpStatus.CONFLICT,	
+      });	
+    }	
+
+    return res.status(httpStatus.NO_CONTENT).json();	
+  } catch (error) {	
+    return next(error);	
+  }	
+};	

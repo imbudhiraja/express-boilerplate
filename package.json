@@ -4,11 +4,18 @@
   "description": "Boilerplate for express projects",
   "main": "src/index.js",
   "scripts": {
-    "start": "node ./src/index.js",
-    "lint": "./node_modules/.bin/eslint . --ext .js --fix",
+    "dev": "export NODE_ENV=development && nodemon ./src/index.js",
+    "start": "export NODE_ENV=production && node ./src/index.js",
+    "lint": "./node_modules/.bin/eslint . --ext .js",
     "docs": "apidoc -i src -o docs && apidoc-postman -i src -o docs/postman",
     "docs-postman": "apidoc-postman -i src -o docs",
     "precommit": "lint-staged"
+  },
+  "nodemonConfig": {
+    "ignore": [
+      "docs/*"
+    ],
+    "delay": "2500"
   },
   "husky": {
     "hooks": {
@@ -75,7 +82,7 @@
     "eslint-config-imbudhiraja": "^1.0.4",
     "husky": "^3.0.0",
     "lint-staged": "^9.2.0",
-    "nodemon": "^1.19.1",
+    "nodemon": "^1.19.4",
     "npm-run-all": "^4.1.5"
   }
 }

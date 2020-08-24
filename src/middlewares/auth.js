@@ -28,7 +28,7 @@ const authorize = async (req, res, next) => {
 
         await User.findOneAndUpdate(
           { 'sessions.access_token': token },
-          { $pull: { sessions: { access_token: token } } }
+          { $pull: { sessions: { access_token: token } } },
         );
 
         return next(apiError);
@@ -39,7 +39,7 @@ const authorize = async (req, res, next) => {
 
         await User.findOneAndUpdate(
           { 'sessions.access_token': token },
-          { $pull: { sessions: { access_token: token } } }
+          { $pull: { sessions: { access_token: token } } },
         );
 
         return next(apiError);
@@ -53,14 +53,16 @@ const authorize = async (req, res, next) => {
 
       if (user.status === 'blocked') {
         throw new Error({
-          message: 'Your account has been suspended by admin. Please contact us for more information.',
+          message:
+            'Your account has been suspended by admin. Please contact us for more information.',
           status: httpStatus.UNAVAILABLE_FOR_LEGAL_REASONS,
         });
       }
 
       if (user.status === 'deleted') {
         throw new Error({
-          message: 'You have deleted you account. Please signup again to continue',
+          message:
+            'You have deleted you account. Please signup again to continue',
           status: httpStatus.UNAVAILABLE_FOR_LEGAL_REASONS,
         });
       }
@@ -78,7 +80,7 @@ const authorize = async (req, res, next) => {
       new Error({
         message: httpStatus[500],
         status: httpStatus.INTERNAL_SERVER_ERROR,
-      })
+      }),
     );
   }
 };

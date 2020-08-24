@@ -8,7 +8,6 @@ const {
   forgotPassword,
   resetPassword,
   changePassword,
-  addPeople,
   userAvailable,
   users,
   blockUnblock,
@@ -192,23 +191,6 @@ routes.route('/reset-password').put(validate(resetPassword), controller.resetPas
  */
 
 routes.route('/change-password').put(validate(changePassword), authorize(), controller.changePassword);
-
-/**
- * @api {POST} v1/user/add-people Add People
- * @apiDescription Company admin can add multiple user
- * @apiVersion 1.0.0
- * @apiName Add People
- * @apiGroup User
- * @apiPermission private
- *
- * @apiHeader {String} Authorization Authorization token
- *
- * @apiParam  {Object} users {email, firstName, lastName, role ['admin', 'team-member'] }
- * @apiError (Conflict 409)  ValidationError user objects is not same as required
- * @apiSuccess (No Content 204) No Content
- */
-
-routes.route('/add-people').post(validate(addPeople), authorize(), controller.addPeople);
 
 /**
  * @api {GET} v1/user/user-available User available
