@@ -1,4 +1,4 @@
-const Joi = require('joi');
+const { Joi } = require('express-validation');
 
 const headers = {
   headers: Joi.object({
@@ -10,53 +10,23 @@ const headers = {
 };
 
 module.exports = {
-  // POST /v1/user/add-people
-
-  addPeople: {
-    ...headers,
-    body: {
-      user: Joi.array().items(
-        Joi.object().keys({
-          email: Joi.string()
-            .lowercase()
-            .trim()
-            .required(),
-          firstName: Joi.string()
-            .required()
-            .lowercase()
-            .trim(),
-          lastName: Joi.string()
-            .required()
-            .lowercase()
-            .trim(),
-          role: Joi.string()
-            .required()
-            .valid(['admin', 'user'])
-            .lowercase()
-            .trim(),
-        })
-      ),
-    },
-  },
-
   // PUT /v1/user/block-unblock
-
   blockUnblock: {
     ...headers,
-    body: {
+    body: Joi.object({
       status: Joi.string()
         .required()
         .lowercase()
         .trim()
-        .valid(['active', 'blocked']),
-    },
-    params: { userId: Joi.string().required() },
+        .valid('active', 'blocked'),
+    }),
+    params: Joi.object({ userId: Joi.string().required() }),
   },
 
   // POST /v1/user/change-password
   changePassword: {
     ...headers,
-    body: {
+    body: Joi.object({
       oldPassword: Joi.string()
         .required()
         .trim()
@@ -67,27 +37,26 @@ module.exports = {
         .trim()
         .min(8)
         .max(16),
-    },
+    }),
   },
 
   // PUT /v1/user/change-role
-
   changeRole: {
     ...headers,
-    body: {
+    body: Joi.object({
       role: Joi.string()
         .required()
         .lowercase()
-        .valid(['admin', 'user'])
+        .valid('admin', 'user')
         .trim(),
-    },
-    params: { userId: Joi.string().required() },
+    }),
+    params: Joi.object({ userId: Joi.string().required() }),
   },
 
   // PUT /v1/user/edit-profile
   editProfile: {
     ...headers,
-    body: {
+    body: Joi.object({
       firstName: Joi.string()
         .required()
         .lowercase()
@@ -97,22 +66,22 @@ module.exports = {
         .lowercase()
         .trim(),
       photo: Joi.string().optional(),
-    },
+    }),
   },
 
   // POST /v1/user/forgot-password
   forgotPassword: {
-    body: {
+    body: Joi.object({
       email: Joi.string()
         .required()
         .lowercase()
         .trim(),
-    },
+    }),
   },
 
   // POST /v1/user/login
   login: {
-    body: {
+    body: Joi.object({
       clientType: Joi.string()
         .valid('browser', 'ios', 'android')
         .lowercase()
@@ -132,22 +101,22 @@ module.exports = {
         .max(16)
         .required()
         .trim(),
-    },
+    }),
   },
 
   // Get /v1/user/refresh-token
   refreshToken: {
     ...headers,
-    body: {
+    body: Joi.object({
       refreshToken: Joi.string()
         .required()
         .trim(),
-    },
+    }),
   },
 
   // POST /v1/user/register
   register: {
-    body: {
+    body: Joi.object({
       email: Joi.string()
         .email()
         .lowercase()
@@ -166,40 +135,41 @@ module.exports = {
         .max(16)
         .required()
         .trim(),
-    },
+    }),
   },
 
   // POST /v1/user/reset-password
   resetPassword: {
-    body: {
+    body: Joi.object({
       password: Joi.string()
         .required()
         .min(8)
         .trim()
         .max(16),
       token: Joi.string().required(),
-    },
+    }),
   },
 
   // POST /v1/user/user-available
 
   userAvailable: {
     ...headers,
-    query: {
+    query: Joi.object({
       email: Joi.string()
         .required()
         .lowercase()
         .trim(),
-    },
+    }),
   },
 
   // GET /v1/user
   users: {
     ...headers,
-    query: {
+    query: Joi.object({
       companyId: Joi.string().optional(),
       userId: Joi.string().optional(),
-    },
+      verified: Joi.string().valid('Verified', 'Unverified', 'Both').default('Both').required(),
+    }),
   },
 
   // Get /v1/user/email-verification

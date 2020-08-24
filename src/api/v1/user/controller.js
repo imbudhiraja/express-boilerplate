@@ -1,8 +1,7 @@
-/* eslint-disable max-lines */
 const bcrypt = require('bcryptjs');
 const httpStatus = require('http-status');
 const { DateTime } = require('luxon');
-const uuidv4 = require('uuid/v4');
+const uuid = require('uuid');
 const User = require('./model');
 const { Error } = require('../../../utils/api-response');
 const { env } = require('../../../config');
@@ -34,7 +33,7 @@ const { deleteFile } = require('../files/controller');
  */
 
 async function generateTokenResponse(user, deviceInfo) {
-  const refreshToken = uuidv4() + user._id;
+  const refreshToken = uuid.v4() + user._id;
 
   // eslint-disable-next-line no-param-reassign
   user.sessions = [
@@ -121,7 +120,7 @@ exports.refreshToken = async (req, res, next) => {
         status: httpStatus.CONFLICT,
       });
     }
-    const refreshTokenKey = uuidv4() + user._id;
+    const refreshTokenKey = uuid.v4() + user._id;
 
     await User.updateOne(
       {
@@ -170,6 +169,7 @@ exports.login = async (req, res, next) => {
         photo: 1,
         sessions: 1,
         status: 1,
+        password: 1,
       }
     );
     const passwordMatches = await user.passwordMatches(password);
@@ -305,22 +305,33 @@ exports.users = async (req, res, next) => {
   try {
     const {
       user,
+      query,
       query: {
-        companyId, userId,
+        companyId, userId, verified,
       },
     } = req;
 
-    let query = {};
+    let dbQuery = {
+      _id: { $nin: user._id },
+      role: { $ne: 'admin' },
+    };
 
     if (companyId) {
-      query = { company_id: companyId };
-    } else if (userId) {
-      query = { _id: userId };
-    } else {
-      query = {
-        _id: { $nin: user._id },
-        role: { $ne: 'admin' },
+      dbQuery = { 
+        ...dbQuery,
+        company_id: companyId,
       };
+    } 
+    
+    if (userId) {
+      dbQuery = {
+        ...dbQuery,
+        _id: userId 
+      };
+    } 
+    
+    if (verified !== 'Both') {
+      dbQuery = { ...dbQuery, is_verified: verified === 'Verified' };
     }
 
     const options = {
@@ -336,7 +347,7 @@ exports.users = async (req, res, next) => {
       status: 1,
     };
 
-    let users = await User.find(query, options);
+    let users = await User.find(dbQuery, options);
 
     if (users.length > 0 && userId) {
       const [singleUser] = users;

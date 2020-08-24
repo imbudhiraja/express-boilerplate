@@ -65,7 +65,7 @@ if (process.env.NODE_ENV === 'staging') {
   config = {
     ...config,
     mongo: { uri: 'mongodb://localhost:27017/production-express-boilerplate' },
-    whitelist: [],
+    whitelist: null,
   };
 }
 

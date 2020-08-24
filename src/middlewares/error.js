@@ -1,5 +1,5 @@
 const httpStatus = require('http-status');
-const expressValidation = require('express-validation');
+const { ValidationError } = require('express-validation');
 const { Error } = require('../utils/api-response');
 const { env } = require('../config');
 
@@ -37,18 +37,12 @@ exports.handler = handler;
 exports.converter = (err, req, res, next) => {
   let convertedError = err;
 
-  if (err instanceof expressValidation.ValidationError) {
-    let customMsg = '';
-
-    err.errors.forEach((element) => {
-      customMsg += `${element.field.join('.')}, `;
-    });
-    customMsg = customMsg.substring(0, customMsg.length - 2);
+  if (err instanceof ValidationError) {
     convertedError = new Error({
-      errors: err.errors,
-      message: `Please enter valid ${customMsg}`,
+      errors: err.details.body || err.details.headers,
+      message: 'Bad Request',
       stack: err.stack,
-      status: err.status,
+      status: 400,
     });
   } else if (!(err instanceof Error)) {
     convertedError = new Error({

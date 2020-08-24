@@ -1,5 +1,5 @@
 const express = require('express');
-const validate = require('express-validation');
+const { validate } = require('express-validation');
 const controller = require('./controller');
 const {
   register,
@@ -29,11 +29,12 @@ const routes = express.Router();
  * @apiHeader {String} Authorization Authorization token
  * @apiParam  {String}  userId(Optional)  User id of any user else all users returned
  * @apiParam  {String}  companyId(Optional)  Get list of users under a single company
+ * @apiParam  {Boolean}  verified(Optional)  Get list of verified users
  * @apiSuccess (Ok 200)   User fetched successfully
  *
  */
 
-routes.route('/').get(validate(users), authorize(), controller.users);
+routes.route('/').get(validate(users, {}, {}), authorize(), controller.users);
 
 /**
  * @api {post} v1/user/register Register user
@@ -56,7 +57,7 @@ routes.route('/').get(validate(users), authorize(), controller.users);
  * @apiError (Conflict 409)     ValidationError  Email address is already exists
  */
 
-routes.route('/register').post(validate(register), controller.register);
+routes.route('/register').post(validate(register, {}, {}), controller.register);
 
 /**
  * @api {post} v1/user/login Login user

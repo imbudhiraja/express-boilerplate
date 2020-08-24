@@ -1,4 +1,4 @@
-const Joi = require('joi');
+const { Joi } = require('express-validation');
 
 module.exports = {
   deleteFile: { params: { _id: Joi.string().required() } },
