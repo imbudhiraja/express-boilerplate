@@ -19,7 +19,7 @@ These instructions will get you a copy of the project up and running on your loc
 
 ```bash
 #!/bin/bash
-Node@v10.x.x
+Node@v10.21.x or higher
 ```
 
 ### Installing
@@ -41,7 +41,8 @@ $ npm ci
 
 | Script | Description |
 | ------ | ------ |
-| npm start | Starts development server at localhost:3001 and socket server at localhost:3002 |
+| npm run dev | Starts development server at localhost:8443 and socket server at localhost:3002 |
+| npm start | Starts production server at localhost:8443 and socket server at localhost:3002 |
 | npm run lint | Run Eslint to find out linting issues. |
 | npm run docs | Create API docs. checkout APIs at - localhost:3001/v1/docs |
 | npm run docs-postman | Create API docs [JSON](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON) file to import to [Postman](https://www.getpostman.com) |
