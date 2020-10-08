@@ -79,7 +79,7 @@
     "apidoc-postman": "0.0.92",
     "babel-eslint": "^10.1.0",
     "eslint": "^7.7.0",
-    "eslint-config-imbudhiraja": "^1.1.0",
+    "eslint-config-imbudhiraja": "1.0.8",
     "husky": "^4.2.5",
     "lint-staged": "^10.2.11",
     "nodemon": "^2.0.4",
