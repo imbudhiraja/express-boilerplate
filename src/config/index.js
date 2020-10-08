@@ -1,72 +1,43 @@
 require('dotenv').config();
 
-/** Default config will remain same in all environments and can be over-ridded */
-let config = {
-  allowedMedia: [
-    'jpg',
-    'jpeg',
-    'png',
-    'gif',
-    'avi',
-    'mov',
-    '3gp',
-    'mp4',
-    'mkv',
-    'mpeg',
-    'mpg',
-    'mp3',
-    'pdf',
-  ],
-  baseUrl: 'http://localhost:3001',
+const config = {
+  allowedMedia: ['jpg', 'jpeg', 'png', 'gif', 'avi', 'mov', '3gp', 'mp4', 'mkv', 'mpeg', 'mpg', 'mp3', 'pdf'],
+  baseUrl: process.env.BASE_URL,
   ddosConfig: {
-    burst: 100,
-    limit: 100,
+    burst: process.env.DDOS_BRUST,
+    limit: process.env.DDOS_LIMIT,
   },
   emails: {
-    'api-key':
-      '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',
+    'api-key': process.env.SEND_GRID_API_KEY,
     from: {
-      email: 'info@express.com',
-      name: 'Express Boilerplate Platform',
+      email: process.env.SENDER_EMAIL,
+      name: process.env.SENDER_NAME,
     },
     templates: {
-      'invite-email': '',
-      'reset-password': '',
-      verification: '',
+      'invite-email': process.env.INVITE_EMAIL_TEMPLATE,
+      'reset-password': process.env.RESET_PASSWORD_EMAIL_TEMPLATE,
+      verification: process.env.VERIFICATION_EMAIL_TEMPLATE,
     },
   },
   env: process.env.NODE_ENV,
-  fcm: { 'server-key': '' },
+  fcm: { 'server-key': process.env.FCM_SERVER_KEY },
   // JWT expiry time in minutes
-  jwtExpirationInterval: 60 * 12,
-  jwtSecret: 'qweqweuiquhjkdncjnzxncb12ne23h194y12u84134234h2j34h3',
+  jwtExpirationInterval: process.env.JWT_EXPIRATION_INTERVAL,
+  jwtSecret: process.env.JWT_SECRET,
   mediaTypes: ['photo', 'video', 'document'],
-  mongo: { uri: 'mongodb://localhost:27017/local-express-boilerplate' },
-  port: 8443,
+  mongo: { uri: process.env.DB_CONNECTION_STRING },
+  port: process.env.PORT,
   roles: ['admin', 'user'],
-  socketPort: 3002,
-  socketUrl: 'localhost',
+  socketPort: process.env.SOCKET_PORT,
+  socketUrl: process.env.SOCKET_URL,
   twilioConfig: {
     // Your Account SID from www.twilio.com/console
-    accountSid: '',
-    authToken: '',
-    from: '',
+    accountSid: process.env.TWILIO_ACCOUNT_ID,
+    authToken: process.env.TWILIO_AUTH_TOKEN,
+    from: process.env.TWILIO_NUMBER,
   },
-  website: 'http://localhost:3000',
-  whitelist: null,
+  website: process.env.WEBSITE,
+  whitelist: [null, undefined, 'null'].includes(process.env.WHITE_LIST) ? null : process.env.WHITE_LIST.split(','),
 };
-
-if (process.env.NODE_ENV === 'staging') {
-  config = {
-    ...config,
-    mongo: { uri: 'mongodb://localhost:27017/staging-express-boilerplate' },
-  };
-} else if (process.env.NODE_ENV === 'production') {
-  config = {
-    ...config,
-    mongo: { uri: 'mongodb://localhost:27017/production-express-boilerplate' },
-    whitelist: null,
-  };
-}
 
 module.exports = config;
