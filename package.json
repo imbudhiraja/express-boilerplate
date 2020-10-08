@@ -1,7 +1,7 @@
 {
   "name": "express-boilerplate",
   "version": "2.0.0",
-  "description": "Boilerplate for express projects",
+  "description": "ExpressJS boilerplate with Socket.IO, Mongoose for scalable projects.",
   "main": "src/index.js",
   "scripts": {
     "dev": "export NODE_ENV=development && nodemon ./src/index.js",
