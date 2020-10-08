@@ -51,12 +51,11 @@ $ npm ci
 
 ```bash
 touch .env
-nano .env
-NODE_ENV=development
 
 npm run start
 http://localhost:8443/
 ```
+#### NOTE - Refer to [Sample Env](https://github.com/imbudhiraja/express-boilerplate/blob/master/.env.js) File
 
 ### Check Server Status
 Once server has started run http://localhost:8443/healthcheck.
