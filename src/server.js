@@ -51,6 +51,7 @@ server.use(helmet());
 server.use(cors(corsOptions));
 
 // mount api v1 routes
+server.use('/healthcheck', (req, res) => res.send('OK'));
 server.use('/v1', routes);
 server.use('/*', (req, res) => res.send('Not Found'));
 
