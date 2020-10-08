@@ -55,11 +55,11 @@ nano .env
 NODE_ENV=development
 
 npm run start
-http://localhost:3001/
+http://localhost:8443/
 ```
 
 ### Check Server Status
-Once server has started run http://localhost:3001/v1/status.
+Once server has started run http://localhost:8443/healthcheck.
 
 ## [Issues](https://github.com/imbudhiraja/express-boilerplate.git/issues)
 ### [LICENSE](https://github.com/imbudhiraja/express-boilerplate/blob/master/LICENSE)
