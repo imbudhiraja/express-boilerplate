@@ -43,7 +43,7 @@ routes.route('/').post(authorize(), controller.create);
  * @apiError (Bad Request 400)   ValidationError  Some parameters may contain invalid values
  * @apiError (Unauthorized 401)  Unauthorized     Only authenticated users can create the data
  */
-routes.route('/:_id').get(validate(download), controller.download);
+routes.route('/:_id').get(validate(download, {}, {}), controller.download);
 
 /**
  * @api {get} v1/files/:_id Delete file
@@ -56,6 +56,6 @@ routes.route('/:_id').get(validate(download), controller.download);
  * @apiError (Bad Request 400)   ValidationError  Some parameters may contain invalid values
  * @apiError (Unauthorized 401)  Unauthorized     Only authenticated users can create the data
  */
-routes.route('/:_id').delete(validate(deleteFile), authorize(), controller.delete);
+routes.route('/:_id').delete(validate(deleteFile, {}, {}), authorize(), controller.delete);
 
 module.exports = routes;
